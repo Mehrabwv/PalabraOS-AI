@@ -1,7 +1,7 @@
 /*
   PalabraOS - a tiny Spanish vocabulary trainer
   ------------------------------------------------------------
-  Board:    ESP32-C3 (Arduino IDE, "ESP32C3 Dev Module")
+  Board:    Seeed XIAO ESP32-S3 (Arduino IDE, "XIAO_ESP32S3")
   Display:  WeAct Studio 2.13" e-paper, black/white, 250 x 122
   Input:    5 buttons - UP, DOWN, LEFT, RIGHT, CENTER
 

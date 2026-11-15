@@ -1,34 +1,34 @@
 # PalabraOS
 
-A tiny Spanish vocabulary trainer for an ESP32-C3, a WeAct Studio 2.13" e-paper
+A tiny Spanish vocabulary trainer for a Seeed XIAO ESP32-S3, a WeAct Studio 2.13" e-paper
 display (black/white, 250 x 122) and five buttons.
 
 ![screens](preview.png)
 
 ## Wiring
 
-All pin numbers can be changed in `config.h`.
+Pin names are the labels printed on the XIAO. All of them can be changed in `config.h`.
 
-| E-paper pin | ESP32-C3 |   | Button | ESP32-C3 (other leg to GND) |
-|-------------|----------|---|--------|-----------------------------|
-| VCC         | 3V3      |   | UP     | GPIO 0 |
-| GND         | GND      |   | DOWN   | GPIO 1 |
-| SCL         | GPIO 4   |   | LEFT   | GPIO 20 |
-| SDA         | GPIO 6   |   | RIGHT  | GPIO 8 |
-| CS          | GPIO 7   |   | CENTER | GPIO 9 |
-| D/C         | GPIO 3   |   |        |        |
-| RES         | GPIO 10  |   |        |        |
-| BUSY        | GPIO 5   |   |        |        |
+| E-paper pin | XIAO |   | Button | XIAO (other leg to GND) |
+|-------------|------|---|--------|-------------------------|
+| VCC         | 3V3  |   | UP     | D0 |
+| GND         | GND  |   | DOWN   | D1 |
+| SCL         | D8   |   | LEFT   | D2 |
+| SDA         | D10  |   | RIGHT  | D3 |
+| CS          | D9   |   | CENTER | D7 |
+| D/C         | D6   |   |        |    |
+| RES         | D5   |   |        |    |
+| BUSY        | D4   |   |        |    |
 
 - The display runs on **3.3 V**, not 5 V.
 - Buttons need no resistors (internal pull-ups are used).
-- GPIO 9 is the chip's BOOT pin: don't hold CENTER while powering up.
-  GPIO 8 is the on-board LED on many C3 boards, so it may light when you press RIGHT.
+- All 11 XIAO pins are used. Keep buttons off D6: the chip sends start-up
+  messages out of that pin.
 
 ## Arduino IDE setup
 
 1. **Boards Manager**: install "esp32" by Espressif Systems.
-2. **Tools > Board**: "ESP32C3 Dev Module".
+2. **Tools > Board**: "XIAO_ESP32S3".
 3. **Library Manager**: install `GxEPD2`, `U8g2_for_Adafruit_GFX` and
    `Adafruit GFX Library` (choose "Install all" for its dependencies).
 4. Open `PalabraOS/PalabraOS.ino` (`config.h` and `words.h` sit next to it) and upload.
@@ -72,7 +72,6 @@ add 1 to `WORD_LIST_VERSION` in the same file.
 
 - **Nothing on the display**: re-check the wiring table, then try the other panel
   types listed at the top of `config.h`.
-- **Upload fails**: hold the board's BOOT button while plugging in USB, then upload again.
+- **Upload fails**: hold the XIAO's tiny BOOT button while plugging in USB, then upload again.
 - **Upside-down picture**: set `EPD_ROTATION` to 3 in `config.h`.
-- **Driver messages**: set `DEBUG_BAUD` to 115200 in `config.h`, enable
-  Tools > USB CDC On Boot, and open the Serial Monitor.
+- **Driver messages**: set `DEBUG_BAUD` to 115200 in `config.h` and open the Serial Monitor.

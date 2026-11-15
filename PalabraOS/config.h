@@ -1,5 +1,5 @@
 // =============================================================
-//  PalabraOS - hardware & behaviour settings   (board: ESP32-C3)
+//  PalabraOS - hardware & behaviour settings   (board: Seeed XIAO ESP32-S3)
 //  Everything you are likely to change lives in this file.
 // =============================================================
 #pragma once
@@ -15,31 +15,29 @@
 // 1 = landscape, 3 = landscape upside-down (flip if your case needs it)
 #define EPD_ROTATION  1
 
-// ---- E-paper wiring (module label -> ESP32-C3 GPIO) ---------
+// ---- E-paper wiring (module label -> XIAO pin) -------------
 //   VCC -> 3V3      GND -> GND
-#define EPD_SCK   4    // module pin "SCL"  (SPI clock)
-#define EPD_MOSI  6    // module pin "SDA"  (SPI data)
-#define EPD_CS    7    // module pin "CS"
-#define EPD_DC    3    // module pin "D/C"
-#define EPD_RST   10   // module pin "RES"
-#define EPD_BUSY  5    // module pin "BUSY"
+// The numbers are the chip's GPIO numbers; the label printed
+// next to the pin on the XIAO is given in the comment.
+#define EPD_SCK   7    // XIAO D8   <- module pin "SCL"  (SPI clock)
+#define EPD_MOSI  9    // XIAO D10  <- module pin "SDA"  (SPI data)
+#define EPD_CS    8    // XIAO D9   <- module pin "CS"
+#define EPD_DC    43   // XIAO D6   <- module pin "D/C"
+#define EPD_RST   6    // XIAO D5   <- module pin "RES"
+#define EPD_BUSY  5    // XIAO D4   <- module pin "BUSY"
 
 // ---- Buttons ------------------------------------------------
-// Each button connects its GPIO to GND. No resistors needed:
+// Each button connects its pin to GND. No resistors needed:
 // the ESP32's internal pull-ups are switched on in software.
 //
-// The C3 only has a handful of pins, so two buttons sit on "boot" pins:
-//   GPIO 9 is the BOOT pin: holding CENTER while plugging in power puts
-//          the chip in upload mode instead of starting PalabraOS.
-//   GPIO 8 is the on-board LED on many C3 boards: it may blink when you
-//          press RIGHT. That is harmless.
-// So: just don't hold a button down while powering up.
-// Do NOT use GPIO 18/19 (USB) and avoid GPIO 2 and 21 for buttons.
-#define PIN_UP      0
-#define PIN_DOWN    1
-#define PIN_LEFT    20
-#define PIN_RIGHT   8
-#define PIN_CENTER  9
+// The XIAO has exactly 11 pins and this project uses all of them.
+// Don't move a button onto D6: the chip sends start-up messages
+// out of that pin, which is why it is used for the display instead.
+#define PIN_UP      1    // XIAO D0
+#define PIN_DOWN    2    // XIAO D1
+#define PIN_LEFT    3    // XIAO D2
+#define PIN_RIGHT   4    // XIAO D3
+#define PIN_CENTER  44   // XIAO D7
 
 // ---- Behaviour ----------------------------------------------
 #define DEBOUNCE_MS         30     // ignore button "bounce" shorter than this
@@ -52,7 +50,6 @@
 // list are only introduced while fewer than this many are "in progress".
 #define ACTIVE_WORDS        15
 
-// Display driver debug messages on the Serial Monitor. 0 = off.
-// To use: set to 115200 AND choose Tools > USB CDC On Boot > Enabled.
-// (Leave at 0 otherwise: without USB CDC, Serial would grab GPIO 20/21.)
+// Display driver debug messages on the Serial Monitor (over USB). 0 = off.
+// Set to 115200 to see them.
 #define DEBUG_BAUD          0
