@@ -15,21 +15,28 @@ import numpy as np, trimesh
 from manifold3d import Manifold, CrossSection
 
 # ---------------- PARAMETERS (mm) ----------------
-MOD_L, MOD_W, PCB_T = 72.0, 30.5, 3.0      # display module board (3 mm includes the parts on its back)
-PANEL_L, PANEL_T    = 59.5, 1.0            # white panel on the board (centred along the board)
-HOLE_INSET          = 2.75                 # hole centre to each board edge   <-- measure and adjust
-PEG_D               = 2.6                  # peg for the 3 mm holes (0.2 mm slack each way)
-SOCKET_U, SOCKET_T  = (44.0, 50.0), 2.0    # cable socket: position along the board, height on its back
+# Sizes are the real parts. Print tolerances are added where each part meets the case (see TOLERANCES).
+MOD_L, MOD_W, PCB_T = 72.0, 30.0, 3.0      # display module board (WeAct drawing; 3 mm includes the parts on its back)
+PANEL_L, PANEL_W, PANEL_T = 59.5, 30.5, 1.0  # white panel: largest of your measurement and the drawing (59.2 x 30.0)
+HOLE_INSET          = 2.8                  # hole centre to each board edge (drawing: 66.4 x 24.4 between centres)
+HOLE_D              = 3.0                  # mounting holes (drawing: R1.5)
+PEG_D               = 2.6                  # peg through the 3 mm holes
+HDR_X, HDR_Y        = (1.93, 4.47), (-3.81, -1.27, 1.27, 3.81)   # 2 x 4 solder holes: from the board end, from its centre line
+SOCKET_U, SOCKET_T  = (46.5, 53.5), 2.0    # 8-pin socket on the back: from the ribbon end (drawing), height
+SOCKET_W            = 16.0
 XIAO_L, XIAO_W, XIAO_T = 21.0, 17.8, 1.2   # XIAO ESP32-S3 board
 USB_H               = 3.2                  # USB-C socket height above the XIAO board
 BAT_L, BAT_W, BAT_T = 35.0, 30.0, 5.0      # 503035 LiPo
-BAT_POCKET          = 37.0                 # pocket length: cell plus its little protection board
+BAT_POCKET          = 38.0                 # pocket length: cell + about 2 mm protection board + 1 mm
 SW_BODY             = 3.5                  # tactile switch body 6 x 6 x 3.5
 PITCH               = 8.0                  # button spacing
 WALL, FLOOR, PLATE  = 1.6, 1.0, 1.2
-GAP, TAB, PADZONE   = 0.4, 1.5, 24.0
+GAP, TAB, PADZONE   = 0.4, 1.5, 24.0       # GAP: display board to the walls, each side
 R                   = 3.0                  # outer corner radius
-BAT_SLACK           = 0.3                  # breathing room above the battery
+EDGE                = 0.8                  # rounding on the front and back outer edges (45 deg near the bed so it prints cleanly)
+BAT_SLACK           = 0.5                  # room above the battery: real cells run up to about 5.5 mm
+# TOLERANCES (gap per side): display opening 0.2, display board to walls 0.4, pegs in holes 0.2,
+# switch collars 0.2, plunger holes 0.25, XIAO cradle 0.2, battery 0.4 across and 1.5 lengthwise, clips 0.15
 H = PLATE + PCB_T + BAT_SLACK + BAT_T + FLOOR   # total thickness = 10.5
 
 # ---------------- derived ----------------
@@ -65,6 +72,20 @@ def rrect(w, h, r, z0, z1):
         pts += [(cx + r * np.cos(t + a0), cy + r * np.sin(t + a0)) for t in a]
     return CrossSection([np.array(pts)]).extrude(z1 - z0).translate([0, 0, z0])
 
+def rounded_block(z0, z1, round_bottom, round_top, f=EDGE):
+    """The case outline from z0 to z1 with its bottom and/or top outer edge rounded by f.
+    The part of the curve closest to a flat face is a 45-degree slope, so it prints with no overhang."""
+    pieces = [rrect(L, W, R, z0 + (f if round_bottom else 0), z1 - (f if round_top else 0))]
+    def ring(inset, z): return rrect(L - 2 * inset, W - 2 * inset, R - inset, z - 0.005, z + 0.005)
+    for phi in np.radians(np.arange(45, 91, 7.5)):
+        inset, dz = f * (1 - np.sin(phi)), f * (1 - np.cos(phi))
+        if round_bottom: pieces.append(ring(inset, z0 + 0.005 + dz))
+        if round_top: pieces.append(ring(inset, z1 - 0.005 - dz))
+    flat = 2 * f * (1 - np.sin(np.radians(45)))      # where the 45-degree slope meets the flat face
+    if round_bottom: pieces.append(ring(flat, z0 + 0.005))
+    if round_top: pieces.append(ring(flat, z1 - 0.005))
+    return Manifold.batch_hull(pieces)
+
 def union(parts):
     out = parts[0]
     for p in parts[1:]: out = out + p
@@ -72,7 +93,7 @@ def union(parts):
 
 # ================= BACK TRAY =================
 def back_tray():
-    t = rrect(L, W, R, 0, UNDER) - rrect(IN_L, IN_W, R - WALL, FLOOR, UNDER + 1)
+    t = rounded_block(0, UNDER, True, False) - rrect(IN_L, IN_W, R - WALL, FLOOR, UNDER + 1)
     add, cut = [], []
     # USB-C opening in the top long wall
     cut.append(box(XC - 5.0, XC + 5.0, IN_W/2 - 0.01, W/2 + 1, XB + XIAO_T - 0.3, XB + XIAO_T + USB_H + 0.4))
@@ -98,8 +119,8 @@ def back_tray():
 
 # ================= FRONT PANEL =================
 def front_panel():
-    p = rrect(L, W, R, UNDER, H)
-    p -= box(MODX - PANEL_L/2 - 0.2, MODX + PANEL_L/2 + 0.2, -MOD_W/2 - 0.2, MOD_W/2 + 0.2, UNDER - 1, H + 1)
+    p = rounded_block(UNDER, H, False, True)
+    p -= box(MODX - PANEL_L/2 - 0.2, MODX + PANEL_L/2 + 0.2, -PANEL_W/2 - 0.2, PANEL_W/2 + 0.2, UNDER - 1, H + 1)
     add = []
     for dx, dy in PADS.values():
         p -= cyl(2.0, PADX + dx, dy, UNDER - 1, H + 1)                     # plunger holes
@@ -107,8 +128,8 @@ def front_panel():
     for ex in (HOLE_INSET, MOD_L - HOLE_INSET):
         for s in (-1, 1):
             x, y = MOD0 + ex, s * (MOD_W/2 - HOLE_INSET)
-            add.append(cyl(PEG_D/2, x, y, BOARD_Z, UNDER + 0.01))
-            add.append(cyl(PEG_D/2, x, y, BOARD_Z - 0.6, BOARD_Z, r_low=PEG_D/2 - 0.4))
+            add.append(cyl(PEG_D/2, x, y, BOARD_Z + 0.6, UNDER + 0.01))
+            add.append(cyl(PEG_D/2, x, y, BOARD_Z, BOARD_Z + 0.6, r_low=PEG_D/2 - 0.4))   # tapered tip, inside the hole
     # switch collars, trimmed to stay 0.2 mm clear of the walls
     collars = union([box(PADX + dx - 4, PADX + dx + 4, dy - 4, dy + 4, UNDER - 2.6, UNDER + 0.01) for dx, dy in PADS.values()])
     collars -= union([box(PADX + dx - 3.2, PADX + dx + 3.2, dy - 3.2, dy + 3.2, UNDER - 3, UNDER + 0.02) for dx, dy in PADS.values()])
@@ -130,8 +151,8 @@ def front_panel():
 def part_boxes():
     b = []   # (group, colour, [x0, y0, z0, x1, y1, z1])
     b.append(('display', 'module', [MOD0, -MOD_W/2, BOARD_Z, MOD0 + MOD_L, MOD_W/2, UNDER]))
-    b.append(('display', 'panel', [MODX - PANEL_L/2, -MOD_W/2, UNDER, MODX + PANEL_L/2, MOD_W/2, UNDER + PANEL_T]))
-    b.append(('display', 'white', [MOD0 + SOCKET_U[0], -7.5, BOARD_Z - SOCKET_T, MOD0 + SOCKET_U[1], 7.5, BOARD_Z]))
+    b.append(('display', 'panel', [MODX - PANEL_L/2, -PANEL_W/2, UNDER, MODX + PANEL_L/2, PANEL_W/2, UNDER + PANEL_T]))
+    b.append(('display', 'white', [MOD0 + SOCKET_U[0], -SOCKET_W/2, BOARD_Z - SOCKET_T, MOD0 + SOCKET_U[1], SOCKET_W/2, BOARD_Z]))
     b.append(('board', 'black', [XA, YE, XB, XA + XIAO_W, YU, XB + XIAO_T]))
     b.append(('board', 'metal', [XC - 4.5, YU - 7.0, XB + XIAO_T, XC + 4.5, YU + 1.4, XB + XIAO_T + USB_H]))
     b.append(('board', 'metal', [XC - 6, YE + 1.5, XB + XIAO_T, XC + 6, YE + 12.5, XB + XIAO_T + 2.3]))
@@ -150,8 +171,9 @@ def wires():
         return (XA + 1.27 if col is left else XA + XIAO_W - 1.27), YU - 2.88 - 2.54 * i
     out = []
     # display: 2 x 4 solder holes at the button end of the module, straight down to the XIAO
-    holes = {'BUSY': (70.5, 3.81), 'RES': (67.1, 3.81), 'DC': (70.5, 1.27), 'CS': (67.1, 1.27),
-             'SCL': (70.5, -1.27), 'SDA': (67.1, -1.27), 'GND': (70.5, -3.81), 'VCC': (67.1, -3.81)}
+    c1, c2 = MOD_L - HDR_X[0], MOD_L - HDR_X[1]
+    holes = {'BUSY': (c1, 3.81), 'RES': (c2, 3.81), 'DC': (c1, 1.27), 'CS': (c2, 1.27),
+             'SCL': (c1, -1.27), 'SDA': (c2, -1.27), 'GND': (c1, -3.81), 'VCC': (c2, -3.81)}
     for sig, to, colour in (('BUSY', 'D4', 0x7d4fc4), ('RES', 'D5', 0xf2f2ee), ('DC', 'D6', 0xe8782a), ('CS', 'D9', 0x2f6fd0),
                             ('SCL', 'D8', 0x2f9e54), ('SDA', 'D10', 0xe6c52f), ('GND', 'GND', 0x222426), ('VCC', '3V3', 0xd23b3b)):
         hx, hy = MOD0 + holes[sig][0], holes[sig][1]; px, py = pad(to)
@@ -194,10 +216,21 @@ if __name__ == '__main__':
         solid = box(x0, x1, y0, y1, z0, z1)
         if colour == 'module':      # the pegs pass through its four holes
             for ex in (HOLE_INSET, MOD_L - HOLE_INSET):
-                for s in (-1, 1): solid -= cyl(1.5, MOD0 + ex, s * (MOD_W/2 - HOLE_INSET), BOARD_Z - 1, UNDER + 1)
+                for s in (-1, 1): solid -= cyl(HOLE_D / 2, MOD0 + ex, s * (MOD_W/2 - HOLE_INSET), BOARD_Z - 1, UNDER + 1)
         a, b = abs((tray ^ solid).volume()), abs((panel ^ solid).volume())
         ok &= a < 1e-3 and b < 1e-3
         print(f'  {group:8s} {colour:7s} overlap with tray {a:6.3f}  with panel {b:6.3f} mm3')
+    print('sideways clearance check (every part grown 0.15 mm in x and y):')
+    for group, colour, (x0, y0, z0, x1, y1, z1) in part_boxes():
+        g = 0.15
+        solid = box(x0 - g, x1 + g, y0 - g, y1 + g, z0 + 0.05, z1 - 0.05)
+        if colour == 'module':
+            for ex in (HOLE_INSET, MOD_L - HOLE_INSET):
+                for s in (-1, 1): solid -= cyl(HOLE_D / 2 - g, MOD0 + ex, s * (MOD_W/2 - HOLE_INSET), BOARD_Z - 1, UNDER + 1)
+        a, b2 = abs((tray ^ solid).volume()), abs((panel ^ solid).volume())
+        ok &= a < 1e-3 and b2 < 1e-3
+        if a > 1e-3 or b2 > 1e-3: print(f'  TOO TIGHT: {group} {colour}: tray {a:.3f}, panel {b2:.3f} mm3')
+    print('  done')
     boxes = [b[2] for b in part_boxes()]
     for i in range(len(boxes)):                      # the parts must not overlap each other either
         for j in range(i + 1, len(boxes)):

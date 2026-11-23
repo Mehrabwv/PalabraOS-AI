@@ -1,18 +1,21 @@
 # PalabraOS enclosures
 
-Two 3D-printable cases for the wired build (no circuit board). Both are 101.5 × 34.5 mm.
+Two 3D-printable cases for the wired build (no circuit board). Default is 101.5 × 34.5 mm, Slim is 101.5 × 34 mm.
 
 | | Default (`enclosure/`) | Slim (`enclosure/slim/`) |
 |---|---|---|
-| Thickness | 13 mm | 10.5 mm |
+| Thickness | 13 mm | 10.7 mm |
 | Files | `back_tray.stl`, `front_panel.stl` | `back_tray_slim.stl`, `front_panel_slim.stl` |
 | Display module | solder holes away from the buttons | turned end for end, holes next to the buttons |
 | XIAO | lengthwise, USB-C out of the short end | crosswise, USB-C out of the top long edge |
 | Display wiring | 8-wire cable from the socket | 8 short wires soldered to the holes |
 | Firmware | `EPD_ROTATION 1` | `EPD_ROTATION 3` |
 
-Neither case has been printed or test-fitted yet. Hole centres are assumed
-2.75 mm from each edge of the display board.
+Neither case has been printed or test-fitted yet. Slim is fitted to the WeAct
+drawing of the display module (72 × 30 mm board, Ø3.0 holes 2.8 mm from each edge)
+with print clearances added: 0.2 mm per side for the display opening, pegs, switches
+and XIAO, 0.4 mm for the display board and battery. Its front and back outer edges
+are rounded 0.8 mm. The default case still uses the earlier measurements.
 
 ## Printing
 
